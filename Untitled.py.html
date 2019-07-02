@@ -1,0 +1,257 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[2]:
+
+
+import numpy as np # library to handle data in a vectorized manner
+
+import pandas as pd # library for data analsysis
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+
+import json # library to handle JSON files
+
+#!conda install -c conda-forge geopy --yes # uncomment this line if you haven't completed the Foursquare API lab
+from geopy.geocoders import Nominatim # convert an address into latitude and longitude values
+
+import requests # library to handle requests
+from pandas.io.json import json_normalize # tranform JSON file into a pandas dataframe
+
+# Matplotlib and associated plotting modules
+import matplotlib.cm as cm
+import matplotlib.colors as colors
+
+# import k-means from clustering stage
+from sklearn.cluster import KMeans
+
+#!conda install -c conda-forge folium=0.5.0 --yes # uncomment this line if you haven't completed the Foursquare API lab
+import folium # map rendering library
+
+print('Libraries imported.')
+
+
+# In[3]:
+
+
+get_ipython().system('pip install beautifulsoup4')
+get_ipython().system('pip install lxml')
+get_ipython().system('pip install html5lib')
+get_ipython().system('pip install geocoder')
+
+
+# In[4]:
+
+
+get_ipython().system("wget -q -O 'toronto_data' https://en.wikipedia.org/wiki/List_of_postal_codes_of_Canada:_M")
+print('Data downloaded!')
+
+
+# In[7]:
+
+
+from bs4 import BeautifulSoup
+web_link = "https://en.wikipedia.org/wiki/List_of_postal_codes_of_Canada:_M"
+web_text= requests.get(web_link).text
+toronto_data = BeautifulSoup(web_text, 'lxml')
+
+
+# In[13]:
+
+
+table = soup.find('table')
+
+Postcode      = []
+Borough       = []
+Neighbourhood = []
+
+
+# In[20]:
+
+
+for tr_cell in table.find_all('tr'):
+    
+    counter = 1
+    Postcode_var      = -1
+    Borough_var       = -1
+    Neighbourhood_var = -1
+    
+    for td_cell in tr_cell.find_all('td'):
+        if counter == 1: 
+            Postcode_var = td_cell.text
+        if counter == 2: 
+            Borough_var = td_cell.text
+            tag_a_Borough = td_cell.find('a')
+            
+        if counter == 3: 
+            Neighbourhood_var = str(td_cell.text).strip()
+            tag_a_Neighbourhood = td_cell.find('a')
+            
+        counter +=1
+        
+        if (Postcode_var == 'Not assigned' or Borough_var == 'Not assigned' or Neighbourhood_var == 'Not assigned'):
+            
+            continue   
+           
+    try:
+        if ((tag_a_Borough is None) or (tag_a_Neighbourhood is None)):
+            
+            continue
+
+    except:
+        
+        pass
+    
+    if(Postcode_var == -1 or Borough_var == -1 or Neighbourhood_var == -1):
+        
+        continue
+    Postcode.append(Postcode_var)
+    Borough.append(Borough_var)
+    Neighbourhood.append(Neighbourhood_var)
+
+
+# In[21]:
+
+
+unique_p = set(Postcode)
+print('num of unique Postal codes:', len(unique_p))
+Postcode_u      = []
+Borough_u       = []
+Neighbourhood_u = []
+
+
+for postcode_unique_element in unique_p:
+    p_var = ''; b_var = ''; n_var = ''; 
+    for postcode_idx, postcode_element in enumerate(Postcode):
+        if postcode_unique_element == postcode_element:
+            p_var = postcode_element;
+            b_var = Borough[postcode_idx]
+            if n_var == '': 
+                n_var = Neighbourhood[postcode_idx]
+            else:
+                n_var = n_var + ', ' + Neighbourhood[postcode_idx]
+    Postcode_u.append(p_var)
+    Borough_u.append(b_var)
+    Neighbourhood_u.append(n_var)
+
+
+# In[22]:
+
+
+toronto_dict = {'Postcode':Postcode_u, 'Borough':Borough_u, 'Neighbourhood':Neighbourhood_u}
+df_toronto = pd.DataFrame.from_dict(toronto_dict)
+df_toronto.to_csv('toronto_part1.csv')
+df_toronto.head(14)
+
+
+# In[25]:
+
+
+df_toronto.shape
+
+
+# In[26]:
+
+
+table_columns = ['Postalcode','Borough','Neighborhood']
+toronto = pd.DataFrame(columns = table_columns)
+content = Canada_data.find('div', class_='mw-parser-output')
+table = content.table.tbody
+postcode = 0
+borough = 0
+neighborhood = 0
+
+for tr in table.find_all('tr'):
+    i = 0
+    for td in tr.find_all('td'):
+        if i == 0:
+            postcode = td.text
+            i = i + 1
+        elif i == 1:
+            borough = td.text
+            i = i + 1
+        elif i == 2: 
+            neighborhood = td.text.strip('\n').replace(']','')
+    toronto = toronto.append({'Postalcode': postcode,'Borough': borough,'Neighborhood': neighborhood},ignore_index=True)
+
+# Ignore cells with a borough that is Not assigned
+toronto = toronto[toronto.Borough!='Not assigned']
+toronto = toronto[toronto.Borough!= 0]
+toronto.reset_index(drop = True, inplace = True)
+i = 0
+for i in range(0,toronto.shape[0]):
+    if toronto.iloc[i][2] == 'Not assigned':
+        toronto.iloc[i][2] = toronto.iloc[i][1]
+        i = i+1                               
+df = toronto.groupby(['Postalcode','Borough'])['Neighborhood'].apply(', '.join).reset_index()
+df.head(10)
+
+
+# In[27]:
+
+
+df = df.dropna()
+empty = 'Not assigned'
+df = df[(df.Postalcode != empty ) & (df.Borough != empty) & (df.Neighborhood != empty)]
+df.head(10)
+
+
+# In[28]:
+
+
+df.shape
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
